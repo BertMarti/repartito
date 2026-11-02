@@ -197,7 +197,7 @@ export function fromNative(r: NativeShare | null | undefined): RawShare | null {
 function nativeShareSource(): ShareSource {
   return {
     async take() {
-      const plugin = await shareInbox();
+      const { plugin } = await shareInbox();
       return fromNative(await plugin.take());
     },
     async discard() {
@@ -205,7 +205,7 @@ function nativeShareSource(): ShareSource {
     },
     listen(fn) {
       void shareInbox()
-        .then((p) => p.addListener('shared', fn))
+        .then(({ plugin }) => plugin.addListener('shared', fn))
         .catch(() => undefined);
     },
   };

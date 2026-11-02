@@ -57,10 +57,17 @@ interface ShareInboxPlugin {
   addListener(event: 'shared', fn: () => void): Promise<{ remove: () => Promise<void> }>;
 }
 
-let inbox: Promise<ShareInboxPlugin> | null = null;
+let inbox: Promise<{ plugin: ShareInboxPlugin }> | null = null;
 
-/** El plugin (solo en la app; en la web `@capacitor/core` es el sustituto vacío). */
-export function shareInbox(): Promise<ShareInboxPlugin> {
-  inbox ??= import('@capacitor/core').then(({ registerPlugin }) => registerPlugin<ShareInboxPlugin>('ShareInbox'));
+/**
+ * El plugin (solo en la app; en la web `@capacitor/core` es el sustituto vacío).
+ *
+ * Va envuelto en un objeto a propósito: el proxy de `registerPlugin` responde a **cualquier** propiedad, también a
+ * `then`, así que una promesa que se resuelve con él lo toma por «thenable», llama al método nativo `then` (que no
+ * existe) y no se resuelve nunca. Por eso tampoco se puede devolver desde una función `async`: se usa `.plugin`.
+ * Pasó en el emulador: ni `take()` ni el aviso `shared` llegaban a la app.
+ */
+export function shareInbox(): Promise<{ plugin: ShareInboxPlugin }> {
+  inbox ??= import('@capacitor/core').then(({ registerPlugin }) => ({ plugin: registerPlugin<ShareInboxPlugin>('ShareInbox') }));
   return inbox;
 }

@@ -123,6 +123,11 @@ la hoja de ruta, en [PLAN.md](PLAN.md).
 - `pkill -f <patrón>` desde la herramienta Bash puede matar su propio shell (el patrón aparece en su línea de
   órdenes): mejor `kill <pid>`.
 
+- **Capacitor**: el proxy de `registerPlugin` responde a cualquier propiedad, también a `then`. Nunca lo devuelvas
+  desde un `.then()` ni desde una función `async` (la promesa lo toma por «thenable» y no se resuelve nunca): envuélvelo
+  (`{ plugin }`). Lo cazó el emulador del CI (el aviso `shared` llegaba, pero la app no recogía nada); test
+  `native-inbox.test.ts`.
+
 ## Tras publicar (2026-10-25)
 
 - Repo público `BertMarti/repartito`, Pages desplegado desde Actions y release v0.1.0. CI, CodeQL, Scorecard y despliegue en verde.
