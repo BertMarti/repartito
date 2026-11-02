@@ -57,7 +57,7 @@ ninguna de esas trabas.
 ## «Juntos» — más adelante
 
 - [ ] Sincronización en vivo opcional entre dispositivos (WebRTC o un relé cifrado de extremo a extremo).
-- [x] **Compartir con Repartito** (Share Target, rama `feat/compartir-con`): una foto de ticket abre «Nuevo gasto»
+- [x] **Compartir con Repartito** (Share Target, **v0.6.0**): una foto de ticket abre «Nuevo gasto»
   con ella; un enlace de grupo, la vista previa y fusión. Web: `share_target` por POST atendido en el service
   worker (nada en `?consulta` ni en la red). Android: `ACTION_SEND` con un plugin propio, sin permisos. Falta
   probarlo en un móvil real (el emulador del CI solo cubre textos y enlaces).

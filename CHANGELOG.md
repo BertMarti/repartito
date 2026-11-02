@@ -4,6 +4,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+## [0.6.0] - 2026-11-02
+
 ### Añadido
 
 - **Compartir con Repartito** desde el menú de compartir del móvil. Una **foto de un ticket** (desde la galería o la
@@ -155,7 +157,8 @@ Auditoría independiente antes de publicar; todo corregido y con test de regresi
 - Los datos dañados se apartan con fecha y se pueden descargar desde Ajustes.
 - El despliegue exige las mismas comprobaciones que el CI.
 
-[Sin publicar]: https://github.com/BertMarti/repartito/compare/v0.5.0...HEAD
+[Sin publicar]: https://github.com/BertMarti/repartito/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/BertMarti/repartito/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/BertMarti/repartito/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/BertMarti/repartito/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/BertMarti/repartito/compare/v0.2.1...v0.3.0

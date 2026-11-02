@@ -1,6 +1,6 @@
 {
   "name": "repartito",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "Reparte gastos de piso, pareja o viaje sin cuenta, sin anuncios y sin límites. Funciona sin conexión.",
   "license": "MIT",

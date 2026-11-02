@@ -1,5 +1,5 @@
 # MEMORY.md · Repartito
-Última actualización: 2026-11-02 por builder (rama `feat/compartir-con`)
+Última actualización: 2026-11-02 por lead (v0.6.0)
 
 Memoria compartida entre agentes: estado, decisiones y trampas. Lo estable está en [AGENTS.md](AGENTS.md);
 la hoja de ruta, en [PLAN.md](PLAN.md).
@@ -187,7 +187,9 @@ la hoja de ruta, en [PLAN.md](PLAN.md).
 - Pendiente: lectura de hablantes nativos de ca, gl y pt; euskera con revisión nativa; `cap sync` y el APK no se
   han probado en esta rama (no cambia nada nativo; las cadenas de Android solo llevan «Repartito»).
 
-## Compartir con Repartito (rama `feat/compartir-con`, 2026-11-02, sin PR)
+## v0.6.0 «Compartir con» (publicada el 2026-11-02)
+
+- PR #7 fusionada. El emulador del CI destapó que el plugin no llegaba a la app (proxy de Capacitor tomado por promesa, ver Trampas); corregido con test de regresión.
 
 - 280 tests en verde (lint, tipos, build web y `build:android` con `cap sync`). El APK no se compila en este equipo
   (sin SDK de Android en arm64): lo hace el CI, que también comprueba que no pide permisos y prueba en el emulador
