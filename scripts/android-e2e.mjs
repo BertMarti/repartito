@@ -101,6 +101,7 @@ const dialogs = `return [...document.querySelectorAll('[role=dialog] h2')].map((
 const sendText = (text) =>
   adb('shell', 'am', 'start', '-W', '-a', 'android.intent.action.SEND', '-t', 'text/plain', '--es', 'android.intent.extra.TEXT', `'${text}'`, '-n', `${APP}/.MainActivity`);
 await ev(`history.go(-(history.state?.repartito ?? 0)); await new Promise((r) => setTimeout(r, 900));`);
+await ev(`window.__compartidos = 0; await window.Capacitor.Plugins.ShareInbox.addListener('shared', () => window.__compartidos++);`);
 const started = sendText(`Grupo: ${link}`);
 await sleep(2500);
 shot('05-compartido-enlace');
@@ -113,7 +114,10 @@ if (!received.length) {
     plugins: Object.keys(window.Capacitor?.Plugins ?? {}),
     avisos: [...document.querySelectorAll('[role=status], [role=alert], .toast')].map((n) => n.textContent.trim()).filter(Boolean),
     capas: history.state,
+    eventos: window.__compartidos,
   };`)));
+  console.log('take():', JSON.stringify(await ev(`const r = await window.Capacitor.Plugins.ShareInbox.take();
+    return Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === 'string' ? v.length : v]));`)));
 }
 check(received.some((h) => /^(Grupo recibido|Group received)$/.test(h)), `un enlace compartido abre la vista previa del grupo (${received.join(', ')})`);
 const clean = await ev(`return location.search === '' && !location.href.includes('#g=');`);
