@@ -22,9 +22,10 @@ import {
   type Group,
   type Settings,
 } from '../core';
-import { makeI18n } from '../i18n';
+import { makeI18n, type Key } from '../i18n';
 import type { AppApi, ConfirmSpec, Layer, Tab, ToastTone } from './context';
-import { clearPhotos, deletePhotos, prunePhotos, refreshPhotoIds, removeGroupPhotos } from './photos';
+import { clearPhotos, deletePhotos, photos, prunePhotos, refreshPhotoIds, removeGroupPhotos } from './photos';
+import { maxImageMb, routeShare, SHARE_FLAG, shareSource, type RawShare, type SharedDraft, type ShareProblem } from './shareTarget';
 
 export interface Toast {
   id: number;
@@ -43,6 +44,13 @@ export interface State {
 }
 
 type Actions = Omit<AppApi, keyof State | 'online'>;
+
+const SHARE_ERROR_KEYS = {
+  type: 'share.err.type',
+  read: 'share.err.read',
+  empty: 'share.err.empty',
+  foreign: 'share.err.foreign',
+} as const satisfies Record<Exclude<ShareProblem, 'size'>, Key>;
 
 const GROUPS_KEY = 'repartito:v1:grupos';
 /** Copias en bruto de los datos que no pasaron la validación al abrir: `<prefijo><marca de tiempo>`. */
@@ -112,6 +120,7 @@ export class AppStore {
       pop: this.pop,
       setLayers: this.setLayers,
       openGroup: this.openGroup,
+      openShared: this.openShared,
       setTab: this.setTab,
       goHome: this.goHome,
       toast: this.toast,
@@ -142,6 +151,7 @@ export class AppStore {
   boot = () => {
     if (this.booted) return;
     this.booted = true;
+    const shared = this.takeShareFlag();
     const payload = this.takeHash();
     history.replaceState({ repartito: 0 }, '');
     let added = 0;
@@ -160,6 +170,76 @@ export class AppStore {
     void prunePhotos(this.state.groups).catch(() => refreshPhotoIds());
     if (payload) this.setLayers([{ t: 'incoming', source: { kind: 'link', payload } }]);
     else if (last && this.state.groups.some((g) => g.id === last)) this.setLayers([{ t: 'group', id: last, tab: 'gastos' }]);
+    this.bootShare(shared);
+  };
+
+  /* ---------- Compartir con Repartito (menú de compartir del móvil) ---------- */
+
+  /** `#compartido` (fijo, sin datos): el service worker acaba de dejar algo. Se borra de la barra al momento. */
+  private takeShareFlag(): boolean {
+    if (location.hash !== SHARE_FLAG) return false;
+    history.replaceState(null, '', location.pathname + location.search);
+    return true;
+  }
+
+  private bootShare(flagged: boolean) {
+    const src = shareSource();
+    if (!src) return;
+    // En la web solo se recoge si se acaba de compartir; si no, cualquier resto se borra sin mirarlo. En la app, el
+    // plugin entrega lo que haya (también lo que llega con la app abierta).
+    if (flagged || src.listen) void this.pickUpShare(flagged);
+    else void src.discard().catch(() => undefined);
+    src.listen?.(() => void this.pickUpShare(false));
+  }
+
+  private pickUpShare = async (expected: boolean) => {
+    let raw: RawShare | null;
+    try {
+      raw = (await shareSource()?.take()) ?? null;
+    } catch {
+      raw = null;
+    }
+    if (!raw) {
+      if (expected) this.toast(this.tr().t('share.err.lost'), 'error');
+      return;
+    }
+    await this.receiveShare(raw);
+  };
+
+  /** Lo compartido, ya recogido: enlace de grupo → vista previa y fusión; foto o texto → «Nuevo gasto». */
+  receiveShare = async (raw: RawShare) => {
+    const r = await routeShare(raw);
+    const tr = this.tr();
+    if (r.kind === 'link') {
+      // Exactamente como abrir el enlace: `IncomingSheet` lo decodifica, lo valida y pide confirmación.
+      this.setLayers([...this.state.layers, { t: 'incoming', source: { kind: 'link', payload: r.payload } }]);
+      return;
+    }
+    if (r.kind === 'error') {
+      this.toast(r.error === 'size' ? tr.t('share.err.size', { mb: maxImageMb() }) : tr.t(SHARE_ERROR_KEYS[r.error]), 'error');
+      return;
+    }
+    let shared: SharedDraft = { file: r.file, title: r.title };
+    if (shared.file && !photos()) {
+      shared = { ...shared, file: null };
+      this.toast(tr.t('share.noPhotos'), 'info');
+    } else if (shared.file && raw.ignored > 0) this.toast(tr.t('share.onlyOne'), 'info');
+    const groups = this.state.groups;
+    if (groups.length === 0) {
+      this.toast(tr.t('share.noGroup'), 'info');
+      return;
+    }
+    if (groups.length === 1) this.openShared(groups[0]!.id, shared);
+    else this.push({ t: 'sharePick', shared });
+  };
+
+  openShared = (groupId: string, shared: SharedDraft) => {
+    if (!this.state.groups.some((g) => g.id === groupId)) return;
+    const layers = this.state.layers.filter((l) => l.t !== 'sharePick');
+    const expense = { t: 'expense' as const, groupId, shared };
+    // Sin hojas abiertas, se abre el grupo debajo; si había alguna (p. ej. con la app ya abierta), no se pierde.
+    if (layers.some((l) => l.t !== 'group')) this.setLayers([...layers, expense]);
+    else this.openGroup(groupId, [expense]);
   };
 
   /** Lee `#g=…`, lo guarda en memoria y lo borra de la barra (y del historial) al momento. */
@@ -172,6 +252,10 @@ export class AppStore {
   }
 
   onHashChange = () => {
+    if (this.takeShareFlag()) {
+      void this.pickUpShare(true);
+      return;
+    }
     const payload = this.takeHash();
     if (payload) this.setLayers([...this.state.layers, { t: 'incoming', source: { kind: 'link', payload } }]);
   };

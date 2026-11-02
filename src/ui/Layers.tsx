@@ -10,6 +10,7 @@ import { NewGroupSheet } from './sheets/NewGroupSheet';
 import { PhotoView } from './sheets/PhotoField';
 import { RecurringSheet } from './sheets/RecurringSheet';
 import { SettingsSheet } from './sheets/SettingsSheet';
+import { SharePickSheet } from './sheets/SharePickSheet';
 import { ShareSheet } from './sheets/ShareSheet';
 import { WhoAmISheet } from './sheets/WhoAmISheet';
 
@@ -38,6 +39,8 @@ export function LayerView({ layer, active }: { layer: Layer; active: boolean }) 
       return <IncomingSheet {...p} source={layer.source} />;
     case 'confirm':
       return <ConfirmSheet {...p} spec={layer} />;
+    case 'sharePick':
+      return <SharePickSheet {...p} shared={layer.shared} />;
     case 'photo':
       return (
         <Sheet {...p} title={t('photo.title')}>
@@ -50,7 +53,7 @@ export function LayerView({ layer, active }: { layer: Layer; active: boolean }) 
       switch (layer.t) {
         case 'expense':
           // La clave obliga a empezar de cero al cambiar «editar» por «repetir» en la misma posición de la pila.
-          return <ExpenseSheet key={layer.repeatOf ? `r-${layer.repeatOf}` : (layer.expenseId ?? 'new')} {...p} group={group} expenseId={layer.expenseId} kind={layer.kind} repeatOf={layer.repeatOf} />;
+          return <ExpenseSheet key={layer.repeatOf ? `r-${layer.repeatOf}` : (layer.expenseId ?? 'new')} {...p} group={group} expenseId={layer.expenseId} kind={layer.kind} repeatOf={layer.repeatOf} shared={layer.shared} />;
         case 'recurring':
           return <RecurringSheet {...p} group={group} recurringId={layer.recurringId} />;
         case 'groupSettings':

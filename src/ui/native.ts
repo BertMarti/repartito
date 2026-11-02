@@ -39,3 +39,28 @@ export async function saveFileNative(filename: string, text: string): Promise<vo
   const { uri } = await Filesystem.writeFile({ path: filename, data: text, directory: Directory.Cache, encoding: Encoding.UTF8 });
   await Share.share({ title: filename, files: [uri] }).catch(() => undefined);
 }
+
+/** Lo que entrega el plugin propio `ShareInbox` (android/app/src/main/java/…/ShareInboxPlugin.java). */
+export interface NativeShare {
+  /** `EXTRA_SUBJECT` y `EXTRA_TEXT` del `ACTION_SEND`. */
+  title?: string;
+  text?: string;
+  /** La imagen compartida, en base64, ya comprobada (tipo y tamaño) por el plugin. */
+  image?: string;
+  mime?: string;
+  error?: string;
+}
+
+interface ShareInboxPlugin {
+  /** Lo último que se compartió con la app (y lo olvida), o `{}`. No lee nada más: no es un lector de archivos. */
+  take(): Promise<NativeShare>;
+  addListener(event: 'shared', fn: () => void): Promise<{ remove: () => Promise<void> }>;
+}
+
+let inbox: Promise<ShareInboxPlugin> | null = null;
+
+/** El plugin (solo en la app; en la web `@capacitor/core` es el sustituto vacío). */
+export function shareInbox(): Promise<ShareInboxPlugin> {
+  inbox ??= import('@capacitor/core').then(({ registerPlugin }) => registerPlugin<ShareInboxPlugin>('ShareInbox'));
+  return inbox;
+}
