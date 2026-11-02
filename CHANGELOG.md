@@ -4,6 +4,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+## [1.0.0] - 2026-11-02 «Estable»
+
+Primera versión estable: el compromiso de que tus datos, tus enlaces y tus copias siguen funcionando en toda la 1.x.
+
+### Añadido
+
+- [Estabilidad y compatibilidad](docs/ESTABILIDAD.md): qué no cambia en la 1.x (datos guardados, enlaces `#g=`, fusión
+  entre versiones distintas, copias de seguridad, CSV, cálculos, dirección de la web y app de Android), la excepción
+  por seguridad y qué no es interfaz pública.
+
+### Arreglado
+
+- Un nombre de grupo largo (40 caracteres) ensanchaba la pantalla del grupo a 320 px: la columna de la cuadrícula
+  medía el título sin cortar. Ahora el título se corta con «…» y nada se sale.
+
 ## [0.6.0] - 2026-11-02
 
 ### Añadido
@@ -157,7 +172,8 @@ Auditoría independiente antes de publicar; todo corregido y con test de regresi
 - Los datos dañados se apartan con fecha y se pueden descargar desde Ajustes.
 - El despliegue exige las mismas comprobaciones que el CI.
 
-[Sin publicar]: https://github.com/BertMarti/repartito/compare/v0.6.0...HEAD
+[Sin publicar]: https://github.com/BertMarti/repartito/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/BertMarti/repartito/compare/v0.6.0...v1.0.0
 [0.6.0]: https://github.com/BertMarti/repartito/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/BertMarti/repartito/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/BertMarti/repartito/compare/v0.3.0...v0.4.0

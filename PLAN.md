@@ -54,6 +54,11 @@ ninguna de esas trabas.
   calcula una vez y la validación lo recalcula. Saldos y fusión no cambian (ver
   [docs/SINCRONIZACION.md](docs/SINCRONIZACION.md#varias-monedas-v040)).
 
+## v1.0.0 «Estable» — publicada
+
+- [x] Promesas de compatibilidad para toda la 1.x ([docs/ESTABILIDAD.md](docs/ESTABILIDAD.md)).
+- [x] Sin desbordes con nombres de grupo largos a 320 px.
+
 ## «Juntos» — más adelante
 
 - [ ] Sincronización en vivo opcional entre dispositivos (WebRTC o un relé cifrado de extremo a extremo).

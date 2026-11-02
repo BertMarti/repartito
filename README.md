@@ -243,7 +243,7 @@ para Android con Capacitor. La sincronización es una
 fusión sin conflictos de las copias de cada persona; los enlaces van comprimidos y, con contraseña, cifrados
 en el propio navegador.
 
-- [Cómo funciona la sincronización](docs/SINCRONIZACION.md) · [App de Android](docs/ANDROID.md)
+- [Cómo funciona la sincronización](docs/SINCRONIZACION.md) · [App de Android](docs/ANDROID.md) · [Estabilidad (1.x)](docs/ESTABILIDAD.md)
 - [Arquitectura](docs/ARQUITECTURA.md)
 - [Modelo de amenazas y auditoría](docs/MODELO_DE_AMENAZAS.md) · [Política de seguridad](SECURITY.md)
 - [Plan](PLAN.md) · [Cambios](CHANGELOG.md) · [Cómo contribuir](CONTRIBUTING.md) · [Guía para agentes de IA](AGENTS.md)
