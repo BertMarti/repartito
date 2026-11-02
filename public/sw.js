@@ -263,8 +263,10 @@ async function receiveShare(request) {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method === 'POST' && request.url === SHARE_ACTION) {
-    // Solo la navegación que lanza el menú de compartir; cualquier otro POST aquí se corta sin salir a la red.
-    event.respondWith(request.mode === 'navigate' ? receiveShare(request) : new Response(null, { status: 405 }));
+    // Solo la navegación de la ventana que lanza el menú de compartir (no la de un iframe); cualquier otro POST aquí
+    // se corta sin salir a la red.
+    const top = request.mode === 'navigate' && request.destination === 'document';
+    event.respondWith(top ? receiveShare(request) : new Response(null, { status: 405 }));
     return;
   }
   if (request.method !== 'GET' || !inScope(request.url) || request.headers.has('range')) return;

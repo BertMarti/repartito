@@ -26,7 +26,7 @@ export const SHARE_MAX_TEXT = MAX_PAYLOAD_CHARS + 16_384;
 /** Igual que al elegir una foto (`PHOTO_MAX_INPUT` en image.ts; un test comprueba que coinciden). */
 export const SHARE_MAX_IMAGE = 40 * 1024 * 1024;
 /** En la app la foto cruza el puente de Capacitor en base64: tope más bajo (ver ShareInboxPlugin.java). */
-export const SHARE_MAX_IMAGE_NATIVE = 20 * 1024 * 1024;
+export const SHARE_MAX_IMAGE_NATIVE = 15 * 1024 * 1024;
 /** Lo que se sabe decodificar en todos los navegadores modernos (sin HEIC). */
 export const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'] as const;
 export type ImageType = (typeof IMAGE_TYPES)[number];
@@ -66,10 +66,10 @@ export function sniffImage(b: Uint8Array): ImageType | null {
   return null;
 }
 
-/** El payload de un enlace de grupo dentro de un texto («Únete: https://…/#g=1.…»), o `null`. */
+/** El payload del primer enlace de grupo válido dentro de un texto («Únete: https://…/#g=1.…»), o `null`. */
 export function findPayload(text: string): string | null {
-  const m = /#g=([A-Za-z0-9_.-]+)/.exec(text);
-  return m && payloadKind(m[1]!) ? m[1]! : null;
+  for (const m of text.matchAll(/#g=([A-Za-z0-9_.-]+)/g)) if (payloadKind(m[1]!)) return m[1]!;
+  return null;
 }
 
 const URL_RE = /\b(?:https?|ftp|file|intent|javascript|data|content):\S*/giu;

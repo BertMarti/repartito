@@ -31,13 +31,20 @@ más de lo necesario (varios archivos, copias en disco, rutas de archivo hacia J
 más que auditar.
 
 - Lee la imagen con el permiso temporal que concede el propio intent sobre esa URI: **ningún `uses-permission`**.
-- Solo `content://` de otras apps (rechaza `file://` y las autoridades de la propia app, como su `FileProvider`),
-  tipos JPEG, PNG, WebP, GIF y AVIF, y como mucho **20 MB**: la foto cruza el puente en base64 (+33 %), y una foto
-  de móvil suele pesar 2-12 MB. Los textos, hasta 1,5 MB (un enlace de grupo).
+- Solo `content://` de otras apps: rechaza `file://`, las URIs con usuario (`content://0@…`) y cualquier autoridad
+  que resuelva a un proveedor de la propia app (como su `FileProvider`, con las copias de seguridad).
+- El tipo se decide por los primeros bytes (JPEG, PNG, WebP, GIF, AVIF), no por el que declara la otra app (hay
+  galerías que dicen `image/jpg` u `application/octet-stream`). Como mucho **15 MB**: la foto cruza el puente en
+  base64 (+33 %) y en JSON, y con 20 MB un móvil con poca memoria podía quedarse sin heap (si pasa, se avisa en vez de
+  cerrar la app). Una foto de móvil suele pesar 2-8 MB.
+- Los textos, hasta 1,5 MB, aunque en la práctica un `ACTION_SEND` no pasa de ~1 MB (límite de Binder): un enlace de
+  grupo enorme falla ya en la app que lo envía. Ese caso se abre pegando el enlace en **Abrir enlace o archivo**.
 - Lo leído se queda **en memoria** hasta que la web llama a `take()` una vez (al arrancar y cuando el plugin avisa
   con el evento `shared`). JS no puede pedir ninguna URI: no es un lector de archivos. Nada va a logcat.
-- Al volver desde «Recientes», Android repite el intent original con `FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`: se
-  ignora para no abrir dos veces lo mismo.
+- Al volver desde «Recientes», Android repite el intent original con `FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`, y al
+  recrear la actividad tras cerrar el proceso, `getIntent()` vuelve a ser el `ACTION_SEND`: los dos casos se ignoran
+  para no abrir dos veces lo mismo (`MainActivity`).
+- El aviso `shared` va retenido (`retainUntilConsumed`): si llega mientras la web arranca, lo recibe al suscribirse.
 - La web lo valida como cualquier dato de fuera (`fromNative`, `routeShare` en `src/ui/shareTarget.ts`) y la foto
   se recomprime con `compressPhoto` antes de guardarse en IndexedDB.
 
@@ -68,8 +75,8 @@ El APK de depuración queda en `android/app/build/outputs/apk/debug/`. Iconos y 
 2. **Emulador** (API 35): instala el APK y `scripts/android-e2e.mjs` se conecta a su WebView por DevTools.
    Comprueba el origen propio, la CSP con Trusted Types, que no hay service worker, el grupo de ejemplo, los
    saldos y que el enlace compartido apunta a la web pública. Después envía `ACTION_SEND` con `adb shell am start`
-   como lo haría WhatsApp: un enlace de grupo abre la vista previa, un texto abre «Nuevo gasto» con ese concepto y
-   una URL ajena no se abre. Falla ante cualquier error de consola, excepción
+   como lo haría WhatsApp: un enlace de grupo abre la vista previa, un texto abre «Nuevo gasto» con ese concepto, una
+   URL ajena no se abre y una imagen que apunta al `FileProvider` de la propia app (`content://0@…`) se rechaza. Falla ante cualquier error de consola, excepción
    o violación de CSP. Las capturas quedan como artefacto.
 3. **Firmar y publicar** (solo etiquetas `v*`): ver abajo.
 

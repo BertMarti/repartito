@@ -222,7 +222,7 @@ de seguridad tampoco las incluye.
 En Android aparece con la **app** instalada, o con la web **instalada** desde Chrome (menú **⋮** → **Instalar
 aplicación**). En iPhone, Safari todavía no deja que las webs reciban cosas compartidas: abre el gasto y toca
 **Añadir foto del ticket**. Se admiten fotos JPG, PNG, WebP, GIF y AVIF (en la web, de hasta 40 MB; en la app, de
-hasta 20 MB); las HEIC del iPhone no. Lo que compartes no se guarda hasta que tocas **Añadir gasto**, y nunca
+hasta 15 MB); las HEIC del iPhone no. Lo que compartes no se guarda hasta que tocas **Añadir gasto**, y nunca
 pasa por ningún servidor.
 </details>
 

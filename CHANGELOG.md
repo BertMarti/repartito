@@ -21,7 +21,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
   la imagen se decide por sus primeros bytes (JPEG, PNG, GIF, WebP, AVIF); SVG y HEIC se rechazan. Topes: una foto de
   40 MB, 1,5 MB por texto. Amenazas S1-S6.
 - Android: plugin propio `ShareInbox` (sin dependencias nuevas ni permisos): solo `content://` de otras apps, nunca
-  los archivos de la propia app; lee como mucho 20 MB y lo guarda en memoria hasta que la web lo pide una vez.
+  los archivos de la propia app; lee como mucho 15 MB, decide el tipo por los primeros bytes y lo guarda en memoria hasta que la web lo pide una vez.
   Amenaza A10. La prueba en emulador envía ahora un enlace, un texto y una URL ajena con `ACTION_SEND`.
 - Sin dependencias npm nuevas ni cambios en la CSP.
 

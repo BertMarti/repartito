@@ -50,6 +50,11 @@ describe('routeShare: enlace, foto o concepto', () => {
     expect(await routeShare(raw({ texts: [`#g=${payload}`], error: 'type' }))).toEqual({ kind: 'link', payload });
   });
 
+  it('se queda con el primer #g= válido aunque antes haya otro que no lo es', async () => {
+    const payload = await encodeGroup(newGroup('Piso', ['Alex', 'Ana']));
+    expect(findPayload(`https://ejemplo.test/#g=basura y el bueno: https://bertmarti.github.io/repartito/#g=${payload}`)).toBe(payload);
+  });
+
   it('un #g= que no es de Repartito no es un enlace', () => {
     expect(findPayload('https://ejemplo.test/#g=hola')).toBeNull();
     expect(findPayload('nada')).toBeNull();

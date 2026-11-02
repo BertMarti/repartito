@@ -78,7 +78,7 @@ la hoja de ruta, en [PLAN.md](PLAN.md).
   hoja la comprime al abrirse con `usePhotoDraft(…, initial)`: hasta «Añadir gasto» no se guarda nada.
 - **Android**: plugin propio `ShareInboxPlugin.java` (descartados los de terceros: más superficie y rutas de archivo
   hacia JS). Lee la URI en el hilo de plugins de Capacitor (el mismo que atiende `take()`, así que no hay carreras),
-  tope de 20 MB por el base64 del puente. En la web `@capacitor/core` se cambia por `native-stub.ts`.
+  tope de 15 MB por el base64 del puente (auditoría: con 20 MB, un móvil con poco heap podía quedarse sin memoria). En la web `@capacitor/core` se cambia por `native-stub.ts`.
 
 ## Trampas conocidas
 
@@ -184,7 +184,7 @@ la hoja de ruta, en [PLAN.md](PLAN.md).
 
 ## Compartir con Repartito (rama `feat/compartir-con`, 2026-11-02, sin PR)
 
-- 279 tests en verde (lint, tipos, build web y `build:android` con `cap sync`). El APK no se compila en este equipo
+- 280 tests en verde (lint, tipos, build web y `build:android` con `cap sync`). El APK no se compila en este equipo
   (sin SDK de Android en arm64): lo hace el CI, que también comprueba que no pide permisos y prueba en el emulador
   enlace, texto y URL ajena por `ACTION_SEND`. El plugin Java se comprobó con `javac` contra clases de mentira.
 - Probado con el build (`vite preview`): navegaciones POST reales al service worker (Chromium 156 sin cabeza con
@@ -192,6 +192,15 @@ la hoja de ruta, en [PLAN.md](PLAN.md).
   gasto y no en el grupo), SVG disfrazado de PNG (rechazado), enlace de grupo (vista previa), URL ajena (aviso),
   texto (concepto) y dos grupos (selector a 320 px, claro y oscuro). Siempre `location.search` vacío, `#compartido`
   borrado y la caché temporal vacía tras recogerla; consola sin errores de CSP ni de Trusted Types.
+- Auditoría (subagente security-auditor): nada alto. Corregidos: el filtro «nunca los proveedores de la propia app»
+  se saltaba con `content://0@<paquete>.fileprovider/…` (ahora se rechazan URIs con usuario y autoridades que
+  resuelven a la propia app; caso en el e2e); `OutOfMemoryError` cerraba la app con fotos cerca del tope (ahora se
+  avisa, el tope baja a 15 MB y se rechaza antes de leer si el proveedor anuncia el tamaño); el aviso `shared` va
+  retenido; tras cerrar Android el proceso no se repite el intent; el tipo se decide por los bytes también en Java;
+  una imagen sin `EXTRA_STREAM` avisa; el getter con tipo solo desde Android 14; `findPayload` prueba todos los `#g=`;
+  el service worker ignora el POST de un iframe (`destination !== 'document'`).
+- Limitación de la web: compartir con la PWA abierta es una navegación nueva, así que un gasto a medio escribir en una
+  hoja abierta se pierde (en Android no: el plugin no recarga la página).
 - Pendiente: probarlo en un Android real (web instalada y APK) con una foto de la galería; el emulador no cubre las
   imágenes. Visto de paso (no es de esta rama): con un nombre de grupo de 40 caracteres, la barra superior del grupo
   desborda a 320 px (el `h1` tiene elipsis pero su contenedor no se encoge).

@@ -61,11 +61,12 @@ beforeEach(() => {
 });
 
 /** Lo que haría el navegador al compartir: una navegación POST multipart al `action` del manifest. */
-function sharePost(fields: Record<string, string | Blob | Blob[]>, { url = ACTION, mode = 'navigate' } = {}) {
+function sharePost(fields: Record<string, string | Blob | Blob[]>, { url = ACTION, mode = 'navigate', destination = 'document' } = {}) {
   const fd = new FormData();
   for (const [k, v] of Object.entries(fields)) for (const x of Array.isArray(v) ? v : [v]) fd.append(k, x as string | Blob);
   const req = new Request(url, { method: 'POST', body: fd });
   Object.defineProperty(req, 'mode', { value: mode });
+  Object.defineProperty(req, 'destination', { value: destination });
   return req;
 }
 
@@ -144,8 +145,10 @@ describe('service worker: POST de compartir', () => {
   });
 
   it('solo atiende la navegación al `action` exacto; nada sale a la red', async () => {
-    const other = await dispatch(sharePost({ text: 'x' }, { mode: 'cors' }));
+    const other = await dispatch(sharePost({ text: 'x' }, { mode: 'cors', destination: '' }));
     expect(other?.status).toBe(405);
+    // Un formulario de otra web dentro de un iframe tampoco.
+    expect((await dispatch(sharePost({ text: 'x' }, { destination: 'iframe' })))?.status).toBe(405);
     expect(caches.store.has(SHARE_CACHE)).toBe(false);
     // Otra ruta o con ?consulta: el service worker no la toca (como cualquier POST).
     expect(await dispatch(sharePost({ text: 'x' }, { url: `${ACTION}?a=1` }))).toBeUndefined();
@@ -156,6 +159,7 @@ describe('service worker: POST de compartir', () => {
   it('un cuerpo que no es multipart no se interpreta', async () => {
     const req = new Request(ACTION, { method: 'POST', body: 'text=hola', headers: { 'content-type': 'application/x-www-form-urlencoded' } });
     Object.defineProperty(req, 'mode', { value: 'navigate' });
+    Object.defineProperty(req, 'destination', { value: 'document' });
     expect((await dispatch(req))?.status).toBe(303);
     expect(await pickup()).toMatchObject({ texts: [], error: 'read' });
   });

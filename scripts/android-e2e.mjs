@@ -116,6 +116,13 @@ shot('06-compartido-texto');
 const expense = await ev(`return { dialogs: [...document.querySelectorAll('[role=dialog] h2')].map((h) => h.textContent.trim()), values: [...document.querySelectorAll('[role=dialog] input')].map((i) => i.value) };`);
 check(expense.dialogs.some((h) => /^(Nuevo gasto|New expense)$/.test(h)) && expense.values.includes('Cena del viernes'), 'un texto compartido abre «Nuevo gasto» con el concepto');
 
+// Una «foto» que apunta al FileProvider de la propia app (con usuario 0@ para esquivar el filtro) se rechaza.
+await ev(`history.go(-(history.state?.repartito ?? 0)); await new Promise((r) => setTimeout(r, 900));`);
+adb('shell', 'am', 'start', '-W', '-a', 'android.intent.action.SEND', '-t', 'image/jpeg', '--eu', 'android.intent.extra.STREAM', `content://0@${APP}.fileprovider/compartir/x.jpg`, '-n', `${APP}/.MainActivity`);
+await sleep(2500);
+const own = await ev(`return { dialogs: [...document.querySelectorAll('[role=dialog] h2')].map((h) => h.textContent.trim()), toast: document.querySelector('.toasts')?.innerText ?? '' };`);
+check(own.dialogs.length === 0 && /(formato de imagen|image format)/.test(own.toast), `una URI del propio FileProvider no se lee («${own.toast}»)`);
+
 // Una URL cualquiera no se abre ni se navega a ella.
 await ev(`history.go(-(history.state?.repartito ?? 0)); await new Promise((r) => setTimeout(r, 900));`);
 sendText('https://example.com/');
