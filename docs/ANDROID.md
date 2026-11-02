@@ -17,10 +17,29 @@ No hay una segunda base de código.
 | Copias y CSV | Descarga | Se escriben en la caché privada y se ofrecen con el menú del sistema (Filesystem + Share) |
 | Enlaces que se comparten | Dirección de la web | Siempre la web pública (`PUBLIC_URL`), nunca `localhost` |
 | Copia en la nube de Google | — | **Desactivada** (`allowBackup=false` y reglas de extracción vacías): los gastos no salen del móvil |
+| Recibir del menú de compartir | `share_target` del manifest (POST al service worker) | `ACTION_SEND` (`image/*`, `text/plain`) → plugin propio `ShareInbox` |
 
 Fotos de tickets (v0.3.0): `<input type="file" accept="image/*">` **sin** `capture`. Así Capacitor abre el selector
 del sistema (que ya ofrece la cámara por su cuenta) y la app no necesita el permiso `CAMERA`. Las fotos se guardan
 en el IndexedDB del WebView, dentro de los datos privados de la app, excluidos de la copia en la nube.
+
+**Compartir con Repartito** (Share Target): el manifiesto declara dos `intent-filter` de `ACTION_SEND` (una imagen
+o `text/plain`) en `MainActivity`. Los recibe un plugin de Capacitor **propio y dentro del repo**,
+`android/app/src/main/java/io/github/bertmarti/repartito/ShareInboxPlugin.java` (unas 150 líneas, sin
+dependencias), registrado en `MainActivity.onCreate`. Se descartaron los plugins de terceros para esto: hacen
+más de lo necesario (varios archivos, copias en disco, rutas de archivo hacia JS) y serían una dependencia nativa
+más que auditar.
+
+- Lee la imagen con el permiso temporal que concede el propio intent sobre esa URI: **ningún `uses-permission`**.
+- Solo `content://` de otras apps (rechaza `file://` y las autoridades de la propia app, como su `FileProvider`),
+  tipos JPEG, PNG, WebP, GIF y AVIF, y como mucho **20 MB**: la foto cruza el puente en base64 (+33 %), y una foto
+  de móvil suele pesar 2-12 MB. Los textos, hasta 1,5 MB (un enlace de grupo).
+- Lo leído se queda **en memoria** hasta que la web llama a `take()` una vez (al arrancar y cuando el plugin avisa
+  con el evento `shared`). JS no puede pedir ninguna URI: no es un lector de archivos. Nada va a logcat.
+- Al volver desde «Recientes», Android repite el intent original con `FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`: se
+  ignora para no abrir dos veces lo mismo.
+- La web lo valida como cualquier dato de fuera (`fromNative`, `routeShare` en `src/ui/shareTarget.ts`) y la foto
+  se recomprime con `compressPhoto` antes de guardarse en IndexedDB.
 
 Barras del sistema: `SystemBars.insetsHandling = native`. El CSS ya usa `env(safe-area-inset-*)` y el modo
 por defecto (`css`) inyectaba variables que no se usan, a veces antes de que existiera el documento (error de
@@ -48,7 +67,9 @@ El APK de depuración queda en `android/app/build/outputs/apk/debug/`. Iconos y 
    APK de depuración y comprobación de que **no pide ningún permiso** `android.permission.*`.
 2. **Emulador** (API 35): instala el APK y `scripts/android-e2e.mjs` se conecta a su WebView por DevTools.
    Comprueba el origen propio, la CSP con Trusted Types, que no hay service worker, el grupo de ejemplo, los
-   saldos y que el enlace compartido apunta a la web pública. Falla ante cualquier error de consola, excepción
+   saldos y que el enlace compartido apunta a la web pública. Después envía `ACTION_SEND` con `adb shell am start`
+   como lo haría WhatsApp: un enlace de grupo abre la vista previa, un texto abre «Nuevo gasto» con ese concepto y
+   una URL ajena no se abre. Falla ante cualquier error de consola, excepción
    o violación de CSP. Las capturas quedan como artefacto.
 3. **Firmar y publicar** (solo etiquetas `v*`): ver abajo.
 

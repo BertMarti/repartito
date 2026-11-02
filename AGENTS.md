@@ -16,7 +16,8 @@ de cada persona (ver [docs/SINCRONIZACION.md](docs/SINCRONIZACION.md)). Publicad
 - Cifrado y compresión con la plataforma: Web Crypto y `CompressionStream`.
 - **Vitest** (happy-dom) y **ESLint 10** con reglas anti-XSS.
 - **Node 24**. Si tu Node local es anterior, antepón `./dk.sh` (ejecuta en un contenedor Node 24).
-- **Android**: Capacitor 8 (plugins oficiales Share y Filesystem), JDK 21, compileSdk 36. Ver [docs/ANDROID.md](docs/ANDROID.md).
+- **Android**: Capacitor 8 (plugins oficiales Share y Filesystem, y uno propio, `ShareInbox`, para recibir lo que se
+  comparte con la app), JDK 21, compileSdk 36. Ver [docs/ANDROID.md](docs/ANDROID.md).
 
 ## Comandos
 

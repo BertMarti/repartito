@@ -1,5 +1,5 @@
 # MEMORY.md · Repartito
-Última actualización: 2026-10-31 por builder (rama `feat/idiomas`)
+Última actualización: 2026-11-02 por builder (rama `feat/compartir-con`)
 
 Memoria compartida entre agentes: estado, decisiones y trampas. Lo estable está en [AGENTS.md](AGENTS.md);
 la hoja de ruta, en [PLAN.md](PLAN.md).
@@ -65,6 +65,20 @@ la hoja de ruta, en [PLAN.md](PLAN.md).
 - **Selector de idioma**: chips que bajan de línea (`.chip--lang`), no el segmentado: cinco no caben a 320 px.
 - **Recordatorio**: «Recordar»/«Avisar» sustituye a «Copiar» en las transferencias en las que estás tú (con copia
   como alternativa); las demás siguen con «Copiar». `shareLink` acepta ya `url` opcional.
+- **Compartir con Repartito** (rama `feat/compartir-con`): `share_target` por **POST multipart también para el
+  texto** (un enlace `#g=` compartido llegaría como `?text=` con GET y quedaría en los registros de Pages). El
+  service worker solo atiende la **navegación** POST a `/repartito/compartir` (otro POST ahí: 405 local), lo deja
+  en la Cache API `repartito-compartido` (`compartir/datos` JSON + `compartir/foto`) y redirige 303 a
+  `/repartito/#compartido`. Se eligió la Cache API y no IndexedDB porque el service worker ya la usa, cabe una
+  `Response` con el Blob y los tests la falsean fácil; las dos son del origen compartido (I7), así que la página
+  la borra al recogerla, descarta lo de más de 10 min y lo valida todo otra vez. `activate` no borra esa caché.
+- **Ruteo** (`routeShare`): un `#g=` en cualquier texto gana (vista previa y fusión de siempre); si no, foto y/o
+  concepto → «Nuevo gasto» (un grupo: directo; varios: hoja «¿En qué grupo?» con el último abierto primero; ninguno:
+  aviso); una URL ajena → aviso, nunca se abre. La foto viaja en la capa `expense` (`shared`) sin comprimir y la
+  hoja la comprime al abrirse con `usePhotoDraft(…, initial)`: hasta «Añadir gasto» no se guarda nada.
+- **Android**: plugin propio `ShareInboxPlugin.java` (descartados los de terceros: más superficie y rutas de archivo
+  hacia JS). Lee la URI en el hilo de plugins de Capacitor (el mismo que atiende `take()`, así que no hay carreras),
+  tope de 20 MB por el base64 del puente. En la web `@capacitor/core` se cambia por `native-stub.ts`.
 
 ## Trampas conocidas
 
@@ -81,8 +95,18 @@ la hoja de ruta, en [PLAN.md](PLAN.md).
 - `createImageBitmap(file)` respeta la orientación EXIF; no usar `URL.createObjectURL` para pintar (la CSP no admite
   `blob:` en `img-src`).
 - En Capacitor, `capture` en el `<input type="file">` lanzaría la cámara y pediría `CAMERA` si se declarara: no usarlo.
-- El panel de navegador integrado de Claude no registra el service worker («An unknown error occurred when
-  fetching the script», una vez por carga): es del entorno, no de la app.
+- El panel de navegador integrado de Claude no registraba el service worker («An unknown error occurred when
+  fetching the script»). En noviembre de 2026 ya lo registra con `vite preview` (config `amedias` del
+  `launch.json` de la carpeta de trabajo).
+- **Simular un share target en un Chromium de escritorio**: formulario `multipart` desde una página **fuera** del
+  ámbito y sin la CSP de la app (p. ej. la 404 de `vite preview` en `/fuera-del-ambito`: la app tiene
+  `form-action 'none'`), con `accept-charset="UTF-8"`. Sin él, la 404 (sin `<meta charset>`) envía «Súper» en
+  Latin-1 y `request.formData()` del service worker falla con un «Failed to fetch» que parece un problema del
+  cuerpo. Un `<input type=file>` vacío envía una parte de archivo sin nombre ni bytes: el service worker la ignora.
+  Para archivos de disco, Chromium sin cabeza por CDP con `DOM.setFileInputFiles`.
+- No hay `javac` en el equipo, pero el JRE trae el módulo: `java -m jdk.compiler/com.sun.tools.javac.Main` compila
+  el plugin contra clases de Android y Capacitor de mentira para cazar fallos de sintaxis y tipos (no sustituye a
+  Gradle en el CI). Ojo con APIs de Java 9+ (`Set.of`): `minSdk` es 24.
 - `git checkout <archivo>` para deshacer una prueba de mutación devuelve el archivo a HEAD: copia antes o usa `git stash`.
 - `Intl` en `es-ES` formatea el yen como «3500 JPY» (no «3500 ¥»): los tests de interfaz buscan el código.
 - `parseRate` no es `parseAmount`: un separador que aparece una sola vez es **siempre decimal** («1.234» = 1,234),
@@ -96,6 +120,8 @@ la hoja de ruta, en [PLAN.md](PLAN.md).
 - `Intl` en `pt-PT` escribe «12/10» para `{ day, month: 'short' }` (no «12 out.»), y en `ca-ES` «12 d’oct.»: es lo
   que da CLDR, no un fallo.
 - `sw.js` en `public/` lleva `VERSION = 'dev'` e `INTEGRITY = {}`: sin build no cachea nada. El CI comprueba que el build los reescribe.
+- `pkill -f <patrón>` desde la herramienta Bash puede matar su propio shell (el patrón aparece en su línea de
+  órdenes): mejor `kill <pid>`.
 
 ## Tras publicar (2026-10-25)
 
@@ -155,3 +181,17 @@ la hoja de ruta, en [PLAN.md](PLAN.md).
   ahora usa `Object.hasOwn`, con test.
 - Pendiente: lectura de hablantes nativos de ca, gl y pt; euskera con revisión nativa; `cap sync` y el APK no se
   han probado en esta rama (no cambia nada nativo; las cadenas de Android solo llevan «Repartito»).
+
+## Compartir con Repartito (rama `feat/compartir-con`, 2026-11-02, sin PR)
+
+- 279 tests en verde (lint, tipos, build web y `build:android` con `cap sync`). El APK no se compila en este equipo
+  (sin SDK de Android en arm64): lo hace el CI, que también comprueba que no pide permisos y prueba en el emulador
+  enlace, texto y URL ajena por `ACTION_SEND`. El plugin Java se comprobó con `javac` contra clases de mentira.
+- Probado con el build (`vite preview`): navegaciones POST reales al service worker (Chromium 156 sin cabeza con
+  archivos de disco, y el navegador integrado) con foto (4000×3000 → 1600×1200, guardada en IndexedDB al añadir el
+  gasto y no en el grupo), SVG disfrazado de PNG (rechazado), enlace de grupo (vista previa), URL ajena (aviso),
+  texto (concepto) y dos grupos (selector a 320 px, claro y oscuro). Siempre `location.search` vacío, `#compartido`
+  borrado y la caché temporal vacía tras recogerla; consola sin errores de CSP ni de Trusted Types.
+- Pendiente: probarlo en un Android real (web instalada y APK) con una foto de la galería; el emulador no cubre las
+  imágenes. Visto de paso (no es de esta rama): con un nombre de grupo de 40 caracteres, la barra superior del grupo
+  desborda a 320 px (el `h1` tiene elipsis pero su contenedor no se encoge).

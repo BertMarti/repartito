@@ -88,6 +88,22 @@ La app de Android ([docs/ANDROID.md](ANDROID.md)) es la misma web dentro de un A
 | T14 | **Pérdida silenciosa** del importe original al pasar por un móvil con la v0.3 (que descarta campos desconocidos) | El `amount` sigue siendo correcto, así que los saldos no cambian. Con la misma marca de edición, la fusión prefiere la versión con `original` (orden total: sigue siendo conmutativa, asociativa e idempotente). Efecto lateral: con marcas idénticas (relojes desajustados), una edición con `original` gana a una lápida; antes decidía el orden JSON, igual de arbitrario, y la vista previa lo enseña (T5). | `merge.ts`, test «la versión de un móvil con la v0.3…» |
 | D6 | Un cambio que hace desbordar el cálculo | La conversión usa BigInt; un resultado que no cabe en un entero seguro se trata como inválido (nunca pasa la validación ni el formulario). | `fx.ts`, test |
 
+## Compartir con Repartito (Share Target)
+
+Desde el menú de compartir del móvil llega a la app una foto (el ticket) o un texto (p. ej. un enlace de grupo
+desde WhatsApp). En la web lo recibe el service worker (`share_target` del manifest); en la app de Android, el
+plugin propio `ShareInbox`. Lo decide `src/ui/shareTarget.ts` (`routeShare`).
+
+| # | Amenaza | Mitigación | Dónde |
+|---|---|---|---|
+| S1 | **Divulgación**: un enlace compartido lleva los datos del grupo; con un `share_target` por `GET` iría en `?text=…` y quedaría en los registros de GitHub Pages y su CDN | `method: POST` y `multipart/form-data` (también para el texto). El service worker atiende el POST a `/repartito/compartir` entero y **nunca lo reenvía a la red**: valida, guarda en el dispositivo y redirige (303) a `/repartito/#compartido`, un fragmento fijo sin datos que la app borra al leerlo. Un POST que no sea la navegación de compartir recibe un 405 local. | `manifest.webmanifest`, `public/sw.js`, tests «nunca en la dirección», «solo atiende la navegación…» y de `share_target` |
+| S2 | Lo compartido **espera en la Cache API**, que comparten las demás webs de `bertmarti.github.io` (I6, I7): podrían leerlo o dejar uno falso | Solo espera el tiempo de una redirección: la app lo recoge y **borra la caché** al momento; lo que tenga más de 10 minutos (o fechas raras) se descarta; si la app se abre sin `#compartido`, se borra sin leerlo; lo nuevo sustituye a lo anterior. Lo recogido se valida entero (forma, tipos, topes, tipo real de la imagen) y sigue el mismo camino que un enlace o una foto elegida a mano, así que lo peor que puede hacer una web hermana es **proponer** un enlace o una foto que hay que confirmar. Mismo riesgo de fondo que `localStorage` (arreglo: origen propio, PLAN). | `shareTarget.ts` (`webShareSource`), tests «recogida en la página» |
+| S3 | Si otra web del origen **anula el registro del service worker** (riesgo restante de I7), un POST de compartir llegaría a GitHub Pages con el enlace en el cuerpo | Pages no atiende POST (responde con un error) y el enlace va en el cuerpo, no en la URL, que es lo que acaba en los registros de acceso. Riesgo aceptado (bajo): requiere un XSS en una web hermana y compartir justo después. Con contraseña, el enlace no revela nada. | — |
+| S4 | **Imagen manipulada** (enorme, bomba de píxeles, SVG con script, HEIC que no se puede abrir, muchas a la vez) | Solo se adjunta la primera; tope de 40 MB (20 MB en la app), 20 archivos y 1,5 MB por texto; el tipo se decide por los **primeros bytes** (JPEG, PNG, GIF, WebP, AVIF), no por lo que declara quien la envía, en el service worker y otra vez en la página. Luego pasa por `compressPhoto` como cualquier foto (L3): nunca se guarda el original. | `sw.js` (`sniffImage`), `shareTarget.ts`, `image.ts`, tests |
+| S5 | **Una URL cualquiera** compartida con la app (`https://…`, `javascript:`, `intent:`) | Nunca se abre ni se navega a ella: solo se busca un `#g=` con formato de Repartito, que va a `decodeGroup` y a la vista previa con confirmación (T5). Cualquier otra dirección se quita del concepto o se rechaza con un aviso. | `shareTarget.ts` (`findPayload`, `titleFrom`), tests «una URL ajena no se abre nunca» |
+| S6 | Otra web hace un POST a `/repartito/compartir` con un formulario (como un enlace malicioso) | Equivale a enviarte un enlace: se abre la vista previa o «Nuevo gasto» y **nada se guarda** sin que toques Fusionar/Añadir o Añadir gasto. | `IncomingSheet.tsx`, `ExpenseSheet.tsx`, tests |
+| A10 | En Android, **cualquier app puede enviar un `ACTION_SEND`** a Repartito, también con una URI de los archivos privados de la propia app (p. ej. las copias de seguridad de su `FileProvider`, A6) o un `file://` | Plugin propio y pequeño (`ShareInboxPlugin.java`), sin dependencias: solo `content://` de **otras** apps (se rechazan las autoridades de la propia app y `file://`), tipos de imagen de la lista, tope de 20 MB al leer, textos acotados. Lee con el permiso temporal que da el intent: **sin `uses-permission`** (el CI lo comprueba). Lo leído se queda en memoria hasta que la web lo pide una vez con `take()`: JS no puede pedir ninguna URI (no es un lector de archivos), nada va a logcat ni a disco, y al volver desde «Recientes» no se repite. La web lo valida igual que en S4/S5. | `ShareInboxPlugin.java`, `AndroidManifest.xml`, `android-e2e.mjs`, tests «lo que llega del plugin» |
+
 ## Revisión externa (después de la v0.2.0)
 
 Otra sesión revisó el código en solo lectura buscando lo que no cubrían F1-F15 ni A1-A9:
@@ -109,6 +125,8 @@ Otra sesión revisó el código en solo lectura buscando lo que no cubrían F1-F
 - **Instalar el APK fuera de Google Play** obliga a permitir «fuentes desconocidas» para ese archivo; se mitiga con la firma verificable y la atestación (A7).
 - **Las fotos de los tickets no están en las copias de seguridad** (a propósito, L1): al cambiar de móvil o borrar
   los datos del navegador se pierden. La app lo avisa junto al botón de la foto.
+- **Compartir con la web sin service worker** (S3): si otra web del origen lo anulara, lo compartido iría a GitHub
+  Pages en el cuerpo de un POST. Desaparece con el origen propio.
 - **Navegadores sin Trusted Types** (Firefox y Safari antiguos): la CSP sigue bloqueando scripts ajenos; solo
   falta esa capa extra.
 

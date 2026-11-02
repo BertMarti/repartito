@@ -4,6 +4,27 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+### Añadido
+
+- **Compartir con Repartito** desde el menú de compartir del móvil. Una **foto de un ticket** (desde la galería o la
+  cámara) abre «Nuevo gasto» con la foto ya puesta, en el grupo que haya o, si hay varios, en el que elijas (el
+  último abierto sale primero). Un **enlace de grupo** (p. ej. desde WhatsApp) abre la misma vista previa y fusión
+  que abrir el enlace. Cualquier otro texto se usa como concepto; una dirección que no es de Repartito no se abre.
+  Funciona en la app de Android y en la web instalada (Chrome en Android).
+
+### Seguridad
+
+- Web: `share_target` por **POST** `multipart/form-data`, también para el texto, para que un enlace compartido nunca
+  vaya en `?consulta` (quedaría en los registros del servidor). El service worker lo atiende sin salir a la red, lo
+  deja unos segundos en una caché del dispositivo (`repartito-compartido`) y vuelve a la app con un fragmento fijo
+  (`#compartido`); la app lo recoge, lo borra y lo valida otra vez (la Cache API la comparte el origen, I7). El tipo de
+  la imagen se decide por sus primeros bytes (JPEG, PNG, GIF, WebP, AVIF); SVG y HEIC se rechazan. Topes: una foto de
+  40 MB, 1,5 MB por texto. Amenazas S1-S6.
+- Android: plugin propio `ShareInbox` (sin dependencias nuevas ni permisos): solo `content://` de otras apps, nunca
+  los archivos de la propia app; lee como mucho 20 MB y lo guarda en memoria hasta que la web lo pide una vez.
+  Amenaza A10. La prueba en emulador envía ahora un enlace, un texto y una URL ajena con `ACTION_SEND`.
+- Sin dependencias npm nuevas ni cambios en la CSP.
+
 ## [0.5.0] - 2026-10-31
 
 ### Añadido
