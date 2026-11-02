@@ -9,3 +9,4 @@ export const Share = { share: unavailable };
 export const Filesystem = { writeFile: unavailable };
 export const Directory = { Cache: 'CACHE' };
 export const Encoding = { UTF8: 'utf8' };
+export const registerPlugin = unavailable;

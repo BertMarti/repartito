@@ -76,6 +76,11 @@ cuenta del grupo sigue en euros.
 **🧾 La foto del ticket**<br>
 Adjunta una foto a cualquier gasto. Se queda **solo en tu móvil**: no viaja en los enlaces ni en las copias.
 
+**📥 Compártelo con Repartito**<br>
+¿Acabas de hacer la foto del ticket? Desde la galería, **Compartir → Repartito** y se abre un gasto nuevo con la
+foto puesta (si tienes varios grupos, eliges cuál). Y si te llega un enlace de grupo por WhatsApp, compártelo con
+Repartito y lo abre directamente.
+
 **📊 Saber en qué se va el dinero**<br>
 Un resumen por meses y por categorías (súper, casa, facturas, ocio…).
 
@@ -209,6 +214,16 @@ Solo quien tenga tu móvil o un enlace que hayas compartido (y su contraseña, s
 Porque las fotos se guardan solo en el móvil donde las haces: así nadie más ve tus tickets y los enlaces
 siguen siendo pequeños. Si quieres enseñar una, mándala por el chat como cualquier otra foto. Ojo: la copia
 de seguridad tampoco las incluye.
+</details>
+
+<details>
+<summary><b>No me sale Repartito al compartir una foto</b></summary>
+
+En Android aparece con la **app** instalada, o con la web **instalada** desde Chrome (menú **⋮** → **Instalar
+aplicación**). En iPhone, Safari todavía no deja que las webs reciban cosas compartidas: abre el gasto y toca
+**Añadir foto del ticket**. Se admiten fotos JPG, PNG, WebP, GIF y AVIF (en la web, de hasta 40 MB; en la app, de
+hasta 15 MB); las HEIC del iPhone no. Lo que compartes no se guarda hasta que tocas **Añadir gasto**, y nunca
+pasa por ningún servidor.
 </details>
 
 <details>

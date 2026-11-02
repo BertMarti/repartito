@@ -96,5 +96,53 @@ shot('04-compartir');
 const link = await ev(`return [...document.querySelectorAll('.sheet input')].map((i) => i.value).find((v) => v.includes('#g=')) ?? '';`);
 check(link.startsWith('https://bertmarti.github.io/repartito/#g=1.'), 'el enlace compartido apunta a la web pública');
 
+// «Compartir con Repartito»: un ACTION_SEND como el de WhatsApp, con la app ya abierta (onNewIntent → ShareInbox).
+const dialogs = `return [...document.querySelectorAll('[role=dialog] h2')].map((h) => h.textContent.trim());`;
+const sendText = (text) =>
+  adb('shell', 'am', 'start', '-W', '-a', 'android.intent.action.SEND', '-t', 'text/plain', '--es', 'android.intent.extra.TEXT', `'${text}'`, '-n', `${APP}/.MainActivity`);
+await ev(`history.go(-(history.state?.repartito ?? 0)); await new Promise((r) => setTimeout(r, 900));`);
+await ev(`window.__compartidos = 0; await window.Capacitor.Plugins.ShareInbox.addListener('shared', () => window.__compartidos++);`);
+const started = sendText(`Grupo: ${link}`);
+await sleep(2500);
+shot('05-compartido-enlace');
+const received = await ev(dialogs);
+if (!received.length) {
+  // Diagnóstico (sin datos del grupo): ¿llegó el intent?, ¿existe el plugin?, ¿qué avisos hay?
+  console.log('am start:', started.replace(/#g=[^\s']*/g, '#g=…'));
+  console.log('diagnóstico:', JSON.stringify(await ev(`return {
+    plugin: window.Capacitor?.isPluginAvailable?.('ShareInbox') ?? null,
+    plugins: Object.keys(window.Capacitor?.Plugins ?? {}),
+    avisos: [...document.querySelectorAll('[role=status], [role=alert], .toast')].map((n) => n.textContent.trim()).filter(Boolean),
+    capas: history.state,
+    eventos: window.__compartidos,
+  };`)));
+  console.log('take():', JSON.stringify(await ev(`const r = await window.Capacitor.Plugins.ShareInbox.take();
+    return Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === 'string' ? v.length : v]));`)));
+}
+check(received.some((h) => /^(Grupo recibido|Group received)$/.test(h)), `un enlace compartido abre la vista previa del grupo (${received.join(', ')})`);
+const clean = await ev(`return location.search === '' && !location.href.includes('#g=');`);
+check(clean, 'nada de lo compartido queda en la dirección');
+
+await ev(`history.go(-(history.state?.repartito ?? 0)); await new Promise((r) => setTimeout(r, 900));`);
+sendText('Cena del viernes');
+await sleep(2500);
+shot('06-compartido-texto');
+const expense = await ev(`return { dialogs: [...document.querySelectorAll('[role=dialog] h2')].map((h) => h.textContent.trim()), values: [...document.querySelectorAll('[role=dialog] input')].map((i) => i.value) };`);
+check(expense.dialogs.some((h) => /^(Nuevo gasto|New expense)$/.test(h)) && expense.values.includes('Cena del viernes'), 'un texto compartido abre «Nuevo gasto» con el concepto');
+
+// Una «foto» que apunta al FileProvider de la propia app (con usuario 0@ para esquivar el filtro) se rechaza.
+await ev(`history.go(-(history.state?.repartito ?? 0)); await new Promise((r) => setTimeout(r, 900));`);
+adb('shell', 'am', 'start', '-W', '-a', 'android.intent.action.SEND', '-t', 'image/jpeg', '--eu', 'android.intent.extra.STREAM', `content://0@${APP}.fileprovider/compartir/x.jpg`, '-n', `${APP}/.MainActivity`);
+await sleep(2500);
+const own = await ev(`return { dialogs: [...document.querySelectorAll('[role=dialog] h2')].map((h) => h.textContent.trim()), toast: document.querySelector('.toasts')?.innerText ?? '' };`);
+check(own.dialogs.length === 0 && /(formato de imagen|image format)/.test(own.toast), `una URI del propio FileProvider no se lee («${own.toast}»)`);
+
+// Una URL cualquiera no se abre ni se navega a ella.
+await ev(`history.go(-(history.state?.repartito ?? 0)); await new Promise((r) => setTimeout(r, 900));`);
+sendText('https://example.com/');
+await sleep(2500);
+const after = await ev(`return { href: location.href, dialogs: document.querySelectorAll('[role=dialog]').length };`);
+check(after.href.startsWith('https://localhost/') && after.dialogs === 0, 'una URL ajena no se abre');
+
 ws.close();
 check(problems.length === 0, `consola sin errores${problems.length ? ':\n  ' + problems.join('\n  ') : ''}`);

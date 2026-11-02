@@ -21,6 +21,7 @@ import { useApp } from '../context';
 import { Icon } from '../icons';
 import type { SheetProps } from '../Layers';
 import { photos } from '../photos';
+import type { SharedDraft } from '../shareTarget';
 import { Sheet } from '../Sheet';
 import { eligibleMembers, vibrate } from '../util';
 import { CategoryPicker, MemberPicker, TextField } from './fields';
@@ -56,7 +57,7 @@ function TemplatePicker({ group, onPick }: { group: Group; onPick: (t: Template)
   );
 }
 
-function ExpenseForm({ group, expense, prefill, formId, onDone }: { group: Group; expense?: Expense; prefill?: Prefill; formId: string; onDone: () => void }) {
+function ExpenseForm({ group, expense, prefill, shared, formId, onDone }: { group: Group; expense?: Expense; prefill?: Prefill; shared?: SharedDraft; formId: string; onDone: () => void }) {
   const { t, locale } = useI18n();
   const { settings, commit, toast, setHighlight, setTab } = useApp();
   const me = settings.me[group.id];
@@ -65,14 +66,15 @@ function ExpenseForm({ group, expense, prefill, formId, onDone }: { group: Group
   const defaultPayer = members.some((m) => m.id === me) ? me! : (members[0]?.id ?? '');
   const payerOf = (id: string | undefined) => (id && members.some((m) => m.id === id) ? id : defaultPayer);
   const [money, setMoney] = useState(() => moneyDraftFrom(group, src, locale));
-  const [title, setTitle] = useState(src?.title ?? '');
+  const [title, setTitle] = useState(src?.title ?? shared?.title ?? '');
   const [category, setCategory] = useState<Category>(src?.category ?? 'compra');
   const [paidBy, setPaidBy] = useState(payerOf(src?.paidBy));
   const [date, setDate] = useState(expense?.date ?? today());
   const [draft, setDraft] = useState(() => draftFrom(src?.split, members, group.currency, locale));
   const [touched, setTouched] = useState(false);
   const [tplError, setTplError] = useState<Key | null>(null);
-  const photo = usePhotoDraft(expense?.id);
+  // Lo compartido desde el móvil: la foto se prepara (se comprime) igual que si se eligiera aquí.
+  const photo = usePhotoDraft(expense?.id, shared?.file ?? undefined);
   const mv = readMoney(money, group.currency);
   const cents = mv.cents;
   const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(date);
@@ -165,7 +167,15 @@ function ExpenseForm({ group, expense, prefill, formId, onDone }: { group: Group
   );
 }
 
-export function ExpenseSheet({ active, onClose, group, expenseId, kind, repeatOf }: SheetProps & { group: Group; expenseId?: string; kind?: 'expense' | 'transfer'; repeatOf?: string }) {
+export function ExpenseSheet({
+  active,
+  onClose,
+  group,
+  expenseId,
+  kind,
+  repeatOf,
+  shared,
+}: SheetProps & { group: Group; expenseId?: string; kind?: 'expense' | 'transfer'; repeatOf?: string; shared?: SharedDraft }) {
   const { t } = useI18n();
   const { commit, confirm, toast, pop, layers, setLayers } = useApp();
   const expense = expenseId ? group.expenses.find((e) => e.id === expenseId && !e.deleted) : undefined;
@@ -235,7 +245,7 @@ export function ExpenseSheet({ active, onClose, group, expenseId, kind, repeatOf
         </div>
       )}
       {mode === 'expense' ? (
-        <ExpenseForm key="e" group={group} expense={expense} prefill={source ? repeatInput(source) : undefined} formId={formId} onDone={onClose} />
+        <ExpenseForm key="e" group={group} expense={expense} prefill={source ? repeatInput(source) : undefined} shared={expense ? undefined : shared} formId={formId} onDone={onClose} />
       ) : (
         <TransferForm key="t" group={group} expense={expense} formId={formId} onDone={onClose} />
       )}

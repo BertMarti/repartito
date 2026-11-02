@@ -14,17 +14,20 @@ export interface PhotoDraft {
   data: string | null;
   busy: boolean;
   error: boolean;
-  pick: (file: File | undefined) => void;
+  pick: (file: Blob | undefined) => void;
   clear: () => void;
   /** Al guardar el gasto: guarda o borra la foto si cambió. */
   persist: (expenseId: string, groupId: string, onError: () => void) => void;
 }
 
-export function usePhotoDraft(expenseId: string | undefined): PhotoDraft {
+/** `initial`: una foto que llega de fuera (menú de compartir del móvil), que se prepara nada más abrir. */
+export function usePhotoDraft(expenseId: string | undefined, initial?: Blob): PhotoDraft {
   const [data, setData] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(Boolean(initial));
   const [error, setError] = useState(false);
   const dirty = useRef(false);
+  const started = useRef(false);
+  const seq = useRef(0);
 
   useEffect(() => {
     const store = photos();
@@ -42,27 +45,42 @@ export function usePhotoDraft(expenseId: string | undefined): PhotoDraft {
     };
   }, [expenseId]);
 
+  const pick = (file: Blob | undefined) => {
+    if (!file) return;
+    const mine = ++seq.current;
+    setBusy(true);
+    setError(false);
+    // Solo cuenta la última foto elegida (p. ej. si se cambia la compartida antes de que esté lista).
+    compressPhoto(file).then(
+      (d) => {
+        if (mine !== seq.current) return;
+        dirty.current = true;
+        setData(d);
+        setBusy(false);
+      },
+      () => {
+        if (mine !== seq.current) return;
+        setError(true);
+        setBusy(false);
+      },
+    );
+  };
+
+  useEffect(() => {
+    // Una sola vez (StrictMode monta dos veces).
+    if (!initial || started.current) return;
+    started.current = true;
+    pick(initial);
+  }, [initial]);
+
   return {
     data,
     busy,
     error,
-    pick: (file) => {
-      if (!file) return;
-      setBusy(true);
-      setError(false);
-      compressPhoto(file).then(
-        (d) => {
-          dirty.current = true;
-          setData(d);
-          setBusy(false);
-        },
-        () => {
-          setError(true);
-          setBusy(false);
-        },
-      );
-    },
+    pick,
     clear: () => {
+      seq.current++;
+      setBusy(false);
       dirty.current = true;
       setData(null);
     },
@@ -73,7 +91,7 @@ export function usePhotoDraft(expenseId: string | undefined): PhotoDraft {
   };
 }
 
-function Picker({ label, onPick, big = false, busy }: { label: string; onPick: (f: File | undefined) => void; big?: boolean; busy: boolean }) {
+function Picker({ label, onPick, big = false, busy }: { label: string; onPick: (f: Blob | undefined) => void; big?: boolean; busy: boolean }) {
   return (
     <label className={`btn btn--soft ${big ? 'btn--block' : 'btn--sm'} photo-pick${busy ? ' photo-pick--busy' : ''}`}>
       {/* Sin `capture`: en la app de Android pediría el permiso de cámara. El selector del sistema ya ofrece la cámara. */}

@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { Group, Settings } from '../core';
+import type { SharedDraft } from './shareTarget';
 
 export type Tab = 'gastos' | 'saldos' | 'resumen' | 'fijos';
 
@@ -19,8 +20,13 @@ export type IncomingSource =
 export type Layer =
   | { t: 'group'; id: string; tab: Tab }
   | { t: 'newGroup' }
-  /** `repeatOf`: gasto nuevo copiado de otro («Repetir»), con fecha de hoy. */
-  | { t: 'expense'; groupId: string; expenseId?: string; kind?: 'expense' | 'transfer'; repeatOf?: string }
+  /**
+   * `repeatOf`: gasto nuevo copiado de otro («Repetir»), con fecha de hoy. `shared`: gasto nuevo con lo que llegó del
+   * menú de compartir del móvil (foto del ticket y concepto); solo en memoria, como la foto en grande.
+   */
+  | { t: 'expense'; groupId: string; expenseId?: string; kind?: 'expense' | 'transfer'; repeatOf?: string; shared?: SharedDraft }
+  /** «¿En qué grupo?» para algo compartido con la app cuando hay varios grupos. */
+  | { t: 'sharePick'; shared: SharedDraft }
   /** Foto de un ticket a pantalla completa (la imagen ya está en memoria: no pasa por el historial). */
   | { t: 'photo'; src: string; title: string }
   | { t: 'recurring'; groupId: string; recurringId?: string }
@@ -52,6 +58,8 @@ export interface AppApi {
   pop: (n?: number) => void;
   setLayers: (next: Layer[]) => void;
   openGroup: (id: string, extra?: Layer[]) => void;
+  /** Abre «Nuevo gasto» en ese grupo con lo compartido desde el móvil. */
+  openShared: (groupId: string, shared: SharedDraft) => void;
   setTab: (tab: Tab) => void;
   goHome: () => void;
   toast: (text: string, tone?: ToastTone) => void;

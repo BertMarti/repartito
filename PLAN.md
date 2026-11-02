@@ -57,7 +57,11 @@ ninguna de esas trabas.
 ## «Juntos» — más adelante
 
 - [ ] Sincronización en vivo opcional entre dispositivos (WebRTC o un relé cifrado de extremo a extremo).
-- [ ] Widgets e integración con el menú de compartir del móvil (Share Target).
+- [x] **Compartir con Repartito** (Share Target, rama `feat/compartir-con`): una foto de ticket abre «Nuevo gasto»
+  con ella; un enlace de grupo, la vista previa y fusión. Web: `share_target` por POST atendido en el service
+  worker (nada en `?consulta` ni en la red). Android: `ACTION_SEND` con un plugin propio, sin permisos. Falta
+  probarlo en un móvil real (el emulador del CI solo cubre textos y enlaces).
+- [ ] Widgets.
 - Más idiomas (en parte):
   - [x] Catalán, gallego y portugués de Portugal (**v0.5.0 «Lenguas»**), con detección del idioma del dispositivo y
     selector en Ajustes. Falta una lectura de hablantes nativos antes de anunciarlos a lo grande.

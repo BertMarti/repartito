@@ -1,8 +1,10 @@
-/* global self, caches, fetch, URL, Response, crypto */
+/* global self, caches, fetch, URL, Response, crypto, Blob */
 /*
  * Service worker de Repartito, escrito a mano.
  *
  * - Solo GET y solo dentro de su ámbito (/repartito/): nunca toca nada de otras rutas ni de otros orígenes.
+ *   La única excepción es el POST de «Compartir con Repartito» (share_target del manifest) a /repartito/compartir:
+ *   se atiende aquí entero y nunca llega a la red (ver «Compartir con Repartito» más abajo).
  * - Al instalar guarda la app (index.html, manifest, icono) y los archivos con hash que enlaza index.html,
  *   incluidas sus fuentes, para que la app funcione sin conexión desde la primera visita.
  * - Navegación: primero la red (para recibir versiones nuevas) y, sin conexión, la copia guardada.
@@ -12,7 +14,9 @@
  *   derivada de ellos. Nada se guarda ni se sirve desde la caché si su huella no coincide: otra página del
  *   mismo origen (bertmarti.github.io) podría escribir en la Cache API, pero no colar un script.
  *
- * Los datos de los grupos nunca pasan por aquí: viven en localStorage y en el fragmento # (que no se envía).
+ * Los datos de los grupos nunca pasan por aquí: viven en localStorage y en el fragmento # (que no se envía). Lo
+ * único que puede llevarlos es un enlace compartido con la app, que se queda en este dispositivo (Cache API) hasta
+ * que la página lo recoge y lo borra.
  */
 // Ambas constantes las reescribe el build (plugin `sw-integrity` de vite.config.ts).
 const VERSION = 'dev';
@@ -24,6 +28,17 @@ const SCOPE = self.registration.scope; // p. ej. https://bertmarti.github.io/rep
 const ASSETS_PREFIX = new URL('assets/', SCOPE).href;
 const INDEX = new URL('./', SCOPE).href;
 const SHELL = [INDEX, new URL('manifest.webmanifest', SCOPE).href, new URL('icon.svg', SCOPE).href];
+
+// «Compartir con Repartito». Los mismos valores que src/ui/shareTarget.ts (un test lo comprueba).
+const SHARE_ACTION = new URL('compartir', SCOPE).href;
+const SHARE_CACHE = 'repartito-compartido';
+const SHARE_META = new URL('compartir/datos', SCOPE).href;
+const SHARE_FILE = new URL('compartir/foto', SCOPE).href;
+const SHARE_DONE = new URL('./#compartido', SCOPE).href;
+const SHARE_MAX_TEXT = 1_500_000 + 16_384;
+const SHARE_MAX_IMAGE = 40 * 1024 * 1024;
+const SHARE_MAX_BODY = SHARE_MAX_IMAGE + 3 * SHARE_MAX_TEXT + 64 * 1024;
+const SHARE_MAX_FILES = 20;
 
 const inScope = (url) => url.startsWith(SCOPE);
 const cacheable = (res) => res && res.ok && res.type === 'basic';
@@ -115,7 +130,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => /^(repartito|amedias)-/.test(k) && k !== SHELL_CACHE && k !== ASSET_CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => /^(repartito|amedias)-/.test(k) && k !== SHELL_CACHE && k !== ASSET_CACHE && k !== SHARE_CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -158,8 +173,102 @@ async function networkFirst(request) {
   }
 }
 
+/* ---------- Compartir con Repartito ---------- */
+
+class ShareProblem extends Error {
+  constructor(code) {
+    super(code);
+    this.code = code;
+  }
+}
+
+/** Tipo real de la imagen por sus primeros bytes (igual que `sniffImage` en src/ui/shareTarget.ts). */
+function sniffImage(b) {
+  const at = (i, ...xs) => xs.every((x, k) => b[i + k] === x);
+  const ascii = (i, s) => at(i, ...[...s].map((c) => c.charCodeAt(0)));
+  if (at(0, 0xff, 0xd8, 0xff)) return 'image/jpeg';
+  if (at(0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return 'image/png';
+  if (ascii(0, 'GIF87a') || ascii(0, 'GIF89a')) return 'image/gif';
+  if (ascii(0, 'RIFF') && ascii(8, 'WEBP')) return 'image/webp';
+  if (ascii(4, 'ftypavif') || ascii(4, 'ftypavis')) return 'image/avif';
+  return null;
+}
+
+/** Del POST a lo que se guarda: textos acotados y, como mucho, una imagen comprobada por su contenido. */
+async function parseShare(request) {
+  const out = { texts: [], file: null, ignored: 0, error: null };
+  const type = request.headers.get('content-type') || '';
+  if (!/^multipart\/form-data;\s*boundary=/i.test(type)) throw new ShareProblem('read');
+  // El cuerpo lo ha montado el navegador con lo que eligió la persona en el menú de compartir: si declara su tamaño y
+  // pasa del tope, ni se lee. Después, cada campo y la foto se comprueban uno a uno.
+  if (Number(request.headers.get('content-length')) > SHARE_MAX_BODY) throw new ShareProblem('size');
+  let form;
+  try {
+    form = await request.formData();
+  } catch {
+    throw new ShareProblem('read');
+  }
+  for (const name of ['title', 'text', 'url']) {
+    const v = form.get(name);
+    if (typeof v !== 'string' || v.trim() === '') continue;
+    if (v.length > SHARE_MAX_TEXT) throw new ShareProblem('size');
+    out.texts.push(v);
+  }
+  // Un campo de archivo vacío (sin nombre ni bytes) es «sin foto», no una foto vacía.
+  const files = form.getAll('foto').filter((f) => typeof f !== 'string' && !(f.size === 0 && f.name === ''));
+  if (files.length > SHARE_MAX_FILES) {
+    out.error = 'size';
+    return out;
+  }
+  const first = files[0];
+  if (!first) return out;
+  out.ignored = files.length - 1;
+  try {
+    if (first.size === 0) throw new ShareProblem('empty');
+    if (first.size > SHARE_MAX_IMAGE) throw new ShareProblem('size');
+    const sniffed = sniffImage(new Uint8Array(await first.slice(0, 16).arrayBuffer()));
+    if (!sniffed) throw new ShareProblem('type');
+    out.file = new Blob([first], { type: sniffed });
+  } catch (e) {
+    // Sin la foto, pero con los textos: un enlace de grupo que venga con ella sigue valiendo.
+    out.error = e instanceof ShareProblem ? e.code : 'read';
+  }
+  return out;
+}
+
+/**
+ * Recibe lo compartido, lo deja en una caché temporal (lo último sustituye a lo anterior; la página lo borra al
+ * recogerlo y lo descarta si tiene más de 10 minutos) y vuelve a la app con un fragmento fijo, sin datos. Pase lo que
+ * pase, responde aquí: lo compartido nunca va a la red (ni en el cuerpo ni en `?consulta`).
+ */
+async function receiveShare(request) {
+  let parsed;
+  try {
+    parsed = await parseShare(request);
+  } catch (e) {
+    parsed = { texts: [], file: null, ignored: 0, error: e instanceof ShareProblem ? e.code : 'read' };
+  }
+  try {
+    await caches.delete(SHARE_CACHE);
+    const cache = await caches.open(SHARE_CACHE);
+    if (parsed.file) await cache.put(SHARE_FILE, new Response(parsed.file, { headers: { 'content-type': parsed.file.type } }));
+    const meta = { v: 1, at: Date.now(), texts: parsed.texts, file: !!parsed.file, ignored: parsed.ignored, error: parsed.error };
+    await cache.put(SHARE_META, new Response(JSON.stringify(meta), { headers: { 'content-type': 'application/json' } }));
+  } catch {
+    /* sin espacio: la app avisará de que no ha llegado nada */
+  }
+  return Response.redirect(SHARE_DONE, 303);
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  if (request.method === 'POST' && request.url === SHARE_ACTION) {
+    // Solo la navegación de la ventana que lanza el menú de compartir (no la de un iframe); cualquier otro POST aquí
+    // se corta sin salir a la red.
+    const top = request.mode === 'navigate' && request.destination === 'document';
+    event.respondWith(top ? receiveShare(request) : new Response(null, { status: 405 }));
+    return;
+  }
   if (request.method !== 'GET' || !inScope(request.url) || request.headers.has('range')) return;
   if (request.mode === 'navigate') event.respondWith(navigation(request));
   else if (request.url.startsWith(ASSETS_PREFIX)) event.respondWith(fromAssets(request));

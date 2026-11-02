@@ -128,6 +128,25 @@
   border-color: var(--mint);
 }
 
+/* «¿En qué grupo?» (algo compartido con la app). */
+.pick > span.pick-emoji {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  font-size: 1.3rem;
+}
+
+.pick-main {
+  display: grid;
+  min-width: 0;
+}
+
+.pick-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ---------- Compartir, abrir ---------- */
 
 .share-intro {

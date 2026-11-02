@@ -78,7 +78,14 @@ export default defineConfig(({ mode }) => {
     // En la web, los plugins de Capacitor se cambian por un sustituto vacío: no viajan en el paquete publicado.
     resolve: android
       ? {}
-      : { alias: { '@capacitor/share': '/src/ui/native-stub.ts', '@capacitor/filesystem': '/src/ui/native-stub.ts' } },
+      : {
+          alias: {
+            '@capacitor/share': '/src/ui/native-stub.ts',
+            '@capacitor/filesystem': '/src/ui/native-stub.ts',
+            // `registerPlugin` del plugin propio ShareInbox (solo en la app).
+            '@capacitor/core': '/src/ui/native-stub.ts',
+          },
+        },
     build: {
       outDir: android ? 'dist-android' : 'dist',
       target: 'es2022',
