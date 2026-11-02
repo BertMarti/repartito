@@ -211,3 +211,8 @@ la hoja de ruta, en [PLAN.md](PLAN.md).
 - Pendiente: probarlo en un Android real (web instalada y APK) con una foto de la galería; el emulador no cubre las
   imágenes. Visto de paso (no es de esta rama): con un nombre de grupo de 40 caracteres, la barra superior del grupo
   desborda a 320 px (el `h1` tiene elipsis pero su contenedor no se encoge).
+
+## v1.0.0 «Estable» (2026-11-02)
+
+- [docs/ESTABILIDAD.md](docs/ESTABILIDAD.md) fija lo que no cambia en la 1.x (datos `repartito:v1:*`, enlaces `1.`/`1e.`, fusión entre versiones, copias, CSV, cálculos, URL, paquete y firma de Android). **Antes de fusionar algo, compruébalo contra esa lista.** Lo nuevo en el modelo, siempre como campo opcional; nunca valores nuevos en un enumerado existente (una versión anterior rechazaría el grupo entero).
+- Arreglo: `.group-aside` es una cuadrícula; sin `grid-template-columns: minmax(0, 1fr)` la columna implícita medía el título sin cortar (`white-space: nowrap`) y un nombre de 40 caracteres ensanchaba la página a 507 px. Trampa general: un hijo con `nowrap` dentro de una cuadrícula sin columnas explícitas.

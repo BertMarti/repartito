@@ -6,6 +6,8 @@
 
 .group-aside {
   display: grid;
+  /* Sin esto, la columna implícita mide lo que el título sin cortar y un nombre largo desborda a 320 px. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-content: start;
 }
